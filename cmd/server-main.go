@@ -392,36 +392,41 @@ func initConfigSubsystem(ctx context.Context, newObject ObjectLayer) error {
 }
 
 // serverMain handler called for 'minio server' command.
+// server端程序入口
 func serverMain(ctx *cli.Context) {
 	signal.Notify(globalOSSignalCh, os.Interrupt, syscall.SIGTERM, syscall.SIGQUIT)
 
 	go handleSignals()
 
+	//性能分析
 	setDefaultProfilerRates()
 
 	// Initialize globalConsoleSys system
 	globalConsoleSys = NewConsoleLogger(GlobalContext)
 	logger.AddTarget(globalConsoleSys)
 
-	// Perform any self-tests
+	// Perform any self-tests  保证了磁盘，纠删码和压缩算法的验证，保证了文件的可用性和集群的可靠性，避免损坏数据
+	// Bitrot算检测
 	bitrotSelfTest()
+	//纠删码的算法检测
 	erasureSelfTest()
+	// 压缩算法的检测
 	compressSelfTest()
 
 	// Handle all server command args.
-	serverHandleCmdArgs(ctx)
+	serverHandleCmdArgs(ctx) //命令行参数处理
 
 	// Handle all server environment vars.
-	serverHandleEnvVars()
+	serverHandleEnvVars() //env环境变量的参数处理
 
 	// Set node name, only set for distributed setup.
-	globalConsoleSys.SetNodeName(globalLocalNodeName)
+	globalConsoleSys.SetNodeName(globalLocalNodeName) //节点名称相关
 
 	// Initialize all help
-	initHelp()
+	initHelp() //帮助信息的初始化
 
-	// Initialize all sub-systems
-	initAllSubsystems()
+	// Initialize all sub-systems  //相关子系统的初始化，包含监控，事件， 权限，锁，bucket和object的相关配置
+	initAllSubsystems() //
 
 	// Is distributed setup, error out if no certificates are found for HTTPS endpoints.
 	if globalIsDistErasure {
@@ -433,7 +438,7 @@ func serverMain(ctx *cli.Context) {
 		}
 	}
 
-	// Check for updates in non-blocking manner.
+	// Check for updates in non-blocking manner.    //后台更新检查的协程，避免网络原因出现的启动等待，因此使用了协程的方式
 	go func() {
 		if !globalCLIContext.Quiet && !globalInplaceUpdateDisabled {
 			// Check for new updates from dl.min.io.
@@ -445,10 +450,10 @@ func serverMain(ctx *cli.Context) {
 		globalActiveCred = auth.DefaultCredentials
 	}
 
-	// Set system resources to maximum.
+	// Set system resources to maximum. //系统层面的检测， 最大协程的数量， 内存大小，系统检查等
 	setMaxResources()
 
-	// Configure server.
+	// Configure server.   //路由相关注册
 	handler, err := configureServerHandler(globalEndpoints)
 	if err != nil {
 		logger.Fatal(config.ErrUnexpectedError(err), "Unable to configure one of server's RPC services")
