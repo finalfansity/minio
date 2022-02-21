@@ -146,7 +146,7 @@ func NewFSObjectLayer(fsPath string) (ObjectLayer, error) {
 	// gets its own UUID for temporary file transaction.
 	fsUUID := mustGetUUID()
 
-	// Initialize meta volume, if volume already exists ignores it.
+	// Initialize meta volume, if volume already exists ignores it.   //首次启动更新uuid
 	if err = initMetaVolumeFS(fsPath, fsUUID); err != nil {
 		return nil, err
 	}

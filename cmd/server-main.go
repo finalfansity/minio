@@ -14,6 +14,7 @@
 //
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
+//  minio server端启动的整体流程全部在这里
 
 package cmd
 
@@ -322,7 +323,7 @@ func initServer(ctx context.Context, newObject ObjectLayer) error {
 		// such that only one server should migrate the entire config
 		// at a given time, this big transaction lock ensures this
 		// appropriately. This is also true for rotation of encrypted
-		// content.
+		// content.   事务锁
 		txnLk := newObject.NewNSLock(minioMetaBucket, minioConfigPrefix+"/transaction.lock")
 
 		// let one of the server acquire the lock, if not let them timeout.
@@ -500,7 +501,7 @@ func serverMain(ctx *cli.Context) {
 
 	logger.SetDeploymentID(globalDeploymentID)
 
-	// Enable background operations for erasure coding
+	// Enable background operations for erasure coding   //分布式部署的修复会和单机有区别，提高修复的性能
 	if globalIsErasure {
 		initAutoHeal(GlobalContext, newObject)
 		initHealMRF(GlobalContext, newObject)
@@ -547,7 +548,7 @@ func serverMain(ctx *cli.Context) {
 		}()
 	}
 
-	// Initialize users credentials and policies in background right after config has initialized.
+	// Initialize users credentials and policies in background right after config has initialized.  用户信息和策略配置初始化
 	go globalIAMSys.Init(GlobalContext, newObject, globalEtcdClient, globalRefreshIAMInterval)
 
 	// Background all other operations such as initializing bucket metadata etc.
@@ -633,7 +634,7 @@ func serverMain(ctx *cli.Context) {
 	<-globalOSSignalCh
 }
 
-// Initialize object layer with the supplied disks, objectLayer is nil upon any error.
+// Initialize object layer with the supplied disks, objectLayer is nil upon any error.   //判断是启动分布式还是单机文件系统的对象存储服务
 func newObjectLayer(ctx context.Context, endpointServerPools EndpointServerPools) (newObject ObjectLayer, err error) {
 	// For FS only, directly use the disk.
 	if endpointServerPools.NEndpoints() == 1 {
